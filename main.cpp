@@ -10,6 +10,8 @@
 #include <memory>
 #include <optional>
 #include <list>
+#include <queue>
+#include <limits>
 #include <chrono>
 using namespace std;
 
@@ -174,9 +176,11 @@ class SearchNode
         shared_ptr<SearchNode> parent;
         Action action;
         int path_cost;
+        int timestamp;
+        static int counter;
     
     SearchNode(const vector<int> &state, shared_ptr<SearchNode> parent = nullptr, Action action = NONE, int path_cost = 0)
-    : state(state), parent(parent), action(action), path_cost(path_cost) {}
+    : state(state), parent(parent), action(action), path_cost(path_cost), timestamp(counter++) {}
 
     static shared_ptr<SearchNode> make_root_node(const vector<int> &state)
     {
@@ -188,6 +192,7 @@ class SearchNode
         return make_shared<SearchNode>(state, parent, action, parent->path_cost + cost);
     }
 };
+int SearchNode::counter = 0;
 
 vector<pair<vector<int>, Action>> get_successors(const vector<int> &state, Action last_action)
 {
@@ -251,21 +256,22 @@ struct output
     int optimal_solution_length;
     float time;
     float heuristic_avg_value;
-    int heuristc_root_value;
+    int heuristic_root_value;
 };
 
 output bfs(const vector<int> &state)
 {
-    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
     auto start_time = std::chrono::high_resolution_clock::now();
-    int heuristc_root_value = manhattan_distance(state, 3);
+    SearchNode::counter = 0;
+    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    int heuristic_root_value = manhattan_distance(state, 3);
 
     if(is_goal(state, goal_state))
     {
         auto end_time = std::chrono::high_resolution_clock::now();
         float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
         std::list<Action> empty;
-        return {0, 0, elapsed_time, 0.0f, heuristc_root_value};
+        return {0, 0, elapsed_time, 0.0f, heuristic_root_value};
     }
 
     deque<shared_ptr<SearchNode>> open;
@@ -290,7 +296,7 @@ output bfs(const vector<int> &state)
                 auto end_time = std::chrono::high_resolution_clock::now();
                 float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
                 int solution_length = path.size();
-                return {expanded_nodes, solution_length, elapsed_time, 0.0f, heuristc_root_value};
+                return {expanded_nodes, solution_length, elapsed_time, 0.0f, heuristic_root_value};
             }   
             if(closed.find(new_state) == closed.end())
             {
@@ -302,7 +308,143 @@ output bfs(const vector<int> &state)
     auto end_time = std::chrono::high_resolution_clock::now();
     float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
     //Unobtainable
-    return {expanded_nodes, -1, elapsed_time, 0.0f, heuristc_root_value};
+    return {expanded_nodes, -1, elapsed_time, 0.0f, heuristic_root_value};
+}
+
+
+output gbfs(const vector<int> &state)
+{
+    auto start_time = std::chrono::high_resolution_clock::now();
+    SearchNode::counter = 0;
+    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    int heuristic_root_value = manhattan_distance(state, 3);
+    int heuristic_total_value = heuristic_root_value;
+
+    auto cmp = [](const shared_ptr<SearchNode>& a, const shared_ptr<SearchNode>& b) {
+        int dist_a = manhattan_distance(a->state, 3);
+        int dist_b = manhattan_distance(b->state, 3);
+        if(dist_a != dist_b)
+        {
+            return dist_a > dist_b;
+        }
+        if(a->path_cost != b->path_cost)
+        {
+            return a->path_cost < b->path_cost;
+        }
+        return a->timestamp>b->timestamp;
+    };
+    
+
+    priority_queue<shared_ptr<SearchNode>, vector<shared_ptr<SearchNode>>, decltype(cmp)> open(cmp);
+    if(manhattan_distance(state, 3) < numeric_limits<double>::infinity())
+    {
+        open.push(SearchNode::make_root_node(state));
+    }
+    unordered_set<vector<int>, VectorHash> closed;
+
+    int expanded_nodes = 0;
+    while (!open.empty())
+    {
+        shared_ptr<SearchNode> n = open.top();
+        open.pop();
+        if(closed.find(n->state) == closed.end())
+        {
+            expanded_nodes++;
+            heuristic_total_value += manhattan_distance(n->state, 3);
+            closed.insert(n->state);
+            if(is_goal(n->state, goal_state))
+            {
+                list<Action> path = extract_path(n);
+                auto end_time = std::chrono::high_resolution_clock::now();
+                float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+                int solution_length = path.size();
+                return {expanded_nodes, solution_length, elapsed_time, (float)heuristic_total_value/expanded_nodes, heuristic_root_value};
+            }
+
+            auto succs = get_successors(n->state, n->action);
+            for(auto &[new_state, action] : succs)
+            {
+                if(closed.find(new_state) == closed.end() && manhattan_distance(new_state, 3) < numeric_limits<double>::infinity())
+                {
+                    shared_ptr<SearchNode> new_n = SearchNode::make_node(n, action, new_state, 1);
+                    open.push(new_n);
+                }
+            }
+        }
+        
+    }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+    //Unobtainable
+    return {expanded_nodes, -1, elapsed_time, (float)heuristic_total_value/expanded_nodes, heuristic_root_value};
+}
+
+output astar(const vector<int> &state)
+{
+    auto start_time = std::chrono::high_resolution_clock::now();
+    SearchNode::counter = 0;
+    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    int heuristic_root_value = manhattan_distance(state, 3);
+    int heuristic_total_value = heuristic_root_value;
+
+    auto cmp = [](const shared_ptr<SearchNode>& a, const shared_ptr<SearchNode>& b) {
+        int h_a = manhattan_distance(a->state, 3);
+        int h_b = manhattan_distance(b->state, 3);
+        int f_a = h_a + a->path_cost;
+        int f_b = h_b + b->path_cost;
+        if (f_a != f_b)
+        {
+            return f_a > f_b;
+        }
+        if(h_a != h_b)
+        {
+            return h_a > h_b;
+        }
+        return a->timestamp > b->timestamp;
+    };
+
+    priority_queue<shared_ptr<SearchNode>, vector<shared_ptr<SearchNode>>, decltype(cmp)> open(cmp);
+    if(manhattan_distance(state, 3) < numeric_limits<double>::infinity())
+    {
+        open.push(SearchNode::make_root_node(state));
+    }
+    unordered_set<vector<int>, VectorHash> closed;
+
+    int expanded_nodes = 0;
+    while (!open.empty())
+    {
+        shared_ptr<SearchNode> n = open.top();
+        open.pop();
+        if(closed.find(n->state) == closed.end())
+        {
+            expanded_nodes++;
+            heuristic_total_value += manhattan_distance(n->state, 3);
+            closed.insert(n->state);
+            if(is_goal(n->state, goal_state))
+            {
+                list<Action> path = extract_path(n);
+                auto end_time = std::chrono::high_resolution_clock::now();
+                float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+                int solution_length = path.size();
+                return {expanded_nodes, solution_length, elapsed_time, (float)heuristic_total_value/expanded_nodes, heuristic_root_value};
+            }
+
+            auto succs = get_successors(n->state, n->action);
+            for(auto &[new_state, action] : succs)
+            {
+                if(closed.find(new_state) == closed.end() && manhattan_distance(new_state, 3) < numeric_limits<double>::infinity())
+                {
+                    shared_ptr<SearchNode> new_n = SearchNode::make_node(n, action, new_state, 1);
+                    open.push(new_n);
+                }
+            }
+        }
+        
+    }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+    //Unobtainable
+    return {expanded_nodes, -1, elapsed_time, (float)heuristic_total_value/expanded_nodes, heuristic_root_value};
 }
 
 int main(int argc, char *argv[])
@@ -348,7 +490,35 @@ int main(int argc, char *argv[])
                  << result.optimal_solution_length << ","
                  << result.time << ","
                  << result.heuristic_avg_value << ","
-                 << result.heuristc_root_value
+                 << result.heuristic_root_value
+                 << "\n";
+        }
+    }
+    else if (algorithm == "-gbfs")
+    {
+        for (const auto &state : states_2d)
+        {
+            output result = gbfs(state);
+
+            cout << result.expanded_nodes << ","
+                 << result.optimal_solution_length << ","
+                 << result.time << ","
+                 << result.heuristic_avg_value << ","
+                 << result.heuristic_root_value
+                 << "\n";
+        }
+    }
+    else if (algorithm == "-astar")
+    {
+        for (const auto &state : states_2d)
+        {
+            output result = astar(state);
+
+            cout << result.expanded_nodes << ","
+                 << result.optimal_solution_length << ","
+                 << result.time << ","
+                 << result.heuristic_avg_value << ","
+                 << result.heuristic_root_value
                  << "\n";
         }
     }
