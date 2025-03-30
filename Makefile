@@ -1,14 +1,15 @@
 CXX = g++  
+CXXFLAGS = -std=c++20 -Wall -Wextra -O2  
 
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2  
-
-TARGET = main  
+TARGET = build/main  
 
 SRCS = main.cpp
 
 all: $(TARGET)
+
 $(TARGET): $(SRCS)
+	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRCS)
 
 clean:
-	rm -f $(TARGET)
+	rm -rf build
