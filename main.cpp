@@ -337,7 +337,7 @@ output gbfs(const vector<int> &state)
     
 
     priority_queue<shared_ptr<SearchNode>, vector<shared_ptr<SearchNode>>, decltype(cmp)> open(cmp);
-    if(manhattan_distance(state, 3) < numeric_limits<double>::infinity())
+    if(manhattan_distance(state, 3) < numeric_limits<int>::max())
     {
         open.push(SearchNode::make_root_node(state));
     }
@@ -476,7 +476,6 @@ output idfs(const vector<int> &state)
 {
     auto start_time = std::chrono::high_resolution_clock::now();
     SearchNode::counter = 0;
-    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
     int heuristic_root_value = manhattan_distance(state, 3);
     int expanded_nodes = 0;
 
@@ -492,6 +491,75 @@ output idfs(const vector<int> &state)
     }
 }
 
+pair<int, list<Action>> recursive_search(shared_ptr<SearchNode> n, int f_limit, Action last_action, int &expanded_nodes)
+{
+    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    int f = manhattan_distance(n->state, 3) + n->path_cost;
+
+    if(f > f_limit)
+    {
+        return make_pair(f,list<Action>()); 
+    }
+
+    if(is_goal(n->state, goal_state))
+    {
+        return make_pair(0,extract_path(n));
+    }
+
+    expanded_nodes++;
+    int next_limit = numeric_limits<int>::max();
+
+    auto succs = get_successors(n->state, last_action);
+    for(auto &[new_state, action] : succs)
+    {
+        int h = manhattan_distance(new_state, 3);
+
+        if(h < numeric_limits<int>::max())
+        {
+            shared_ptr<SearchNode> new_node = SearchNode::make_node(n, action, new_state, 1);
+            int rec_limit;
+            list<Action> solution;
+            tie(rec_limit, solution) = recursive_search(new_node, f_limit, action, expanded_nodes);
+            if (!solution.empty() && solution.back() != NONE)
+            {
+                return make_pair(f_limit, solution);
+            }
+            next_limit = min(next_limit, rec_limit);
+        }
+    }
+    return make_pair(next_limit, list<Action>({NONE}));
+}
+
+output idastar(const vector<int> &state)
+{
+    auto start_time = std::chrono::high_resolution_clock::now();
+    SearchNode::counter = 0;
+
+    int heuristic_root_value = manhattan_distance(state, 3);
+    int expanded_nodes = 0;
+
+    shared_ptr<SearchNode> n0 = SearchNode::make_root_node(state);
+    int f_limit = heuristic_root_value;
+
+    while(f_limit < numeric_limits<int>::max())
+    {
+        list<Action> solution;
+        int new_f_limit;
+        tie(new_f_limit, solution) = recursive_search(n0, f_limit, NONE, expanded_nodes);
+
+        if(solution.empty() || solution.back() != NONE)
+        {
+            auto end_time = std::chrono::high_resolution_clock::now();
+            float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+            return {expanded_nodes, f_limit, elapsed_time, 0.0f, heuristic_root_value};
+        }
+
+        f_limit = new_f_limit;
+    }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+    return {expanded_nodes, -1, elapsed_time, 0.0f, heuristic_root_value};
+}
 
 int main(int argc, char *argv[])
 {
@@ -573,6 +641,20 @@ int main(int argc, char *argv[])
         for (const auto &state : states_2d)
         {
             output result = idfs(state);
+
+            cout << result.expanded_nodes << ","
+                 << result.optimal_solution_length << ","
+                 << result.time << ","
+                 << result.heuristic_avg_value << ","
+                 << result.heuristic_root_value
+                 << "\n";
+        }
+    }
+    else if (algorithm == "-idastar")
+    {
+        for (const auto &state : states_2d)
+        {
+            output result = idastar(state);
 
             cout << result.expanded_nodes << ","
                  << result.optimal_solution_length << ","
