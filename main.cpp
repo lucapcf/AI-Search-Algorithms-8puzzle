@@ -443,7 +443,6 @@ stack<Action> depth_limited_search(const vector<int> &state, int depth_limit,
 output idfs(const vector<int> &state) {
     auto start_time = std::chrono::high_resolution_clock::now();
     SearchNode::counter = 0;
-    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
     int heuristic_root_value = manhattan_distance(state, 3);
     int expanded_nodes = 0;
 
