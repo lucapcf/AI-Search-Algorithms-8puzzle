@@ -12,6 +12,7 @@
 #include <list>
 #include <queue>
 #include <limits>
+#include <stack>
 #include <chrono>
 using namespace std;
 
@@ -447,6 +448,51 @@ output astar(const vector<int> &state)
     return {expanded_nodes, -1, elapsed_time, (float)heuristic_total_value/expanded_nodes, heuristic_root_value};
 }
 
+stack<Action> depth_limited_search(const vector<int> &state, int depth_limit, Action last_action, int &expanded_nodes)
+{
+    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    if(is_goal(state, goal_state))
+    {
+        return stack<Action>();
+    }
+    expanded_nodes++;
+    if(depth_limit > 0)
+    {
+        auto succs = get_successors(state, last_action);
+        for(auto &[new_state, action] : succs)
+        {
+            stack<Action> solution = depth_limited_search(new_state, depth_limit - 1, action, expanded_nodes);
+            if(solution.empty() || solution.top() != NONE)
+            {
+                solution.push(action);
+                return solution;
+            }
+        }
+    }
+    return stack<Action>({NONE});
+}
+
+output idfs(const vector<int> &state)
+{
+    auto start_time = std::chrono::high_resolution_clock::now();
+    SearchNode::counter = 0;
+    static const vector<int> goal_state = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    int heuristic_root_value = manhattan_distance(state, 3);
+    int expanded_nodes = 0;
+
+    for(int depth_limit = 0; ; depth_limit++)
+    {
+        stack<Action> solution = depth_limited_search(state, depth_limit, NONE, expanded_nodes);
+        if(solution.empty() || solution.top() != NONE)
+        {
+            auto end_time = std::chrono::high_resolution_clock::now();
+            float elapsed_time = std::chrono::duration<float>(end_time - start_time).count();
+            return {expanded_nodes, depth_limit, elapsed_time, 0.0f, heuristic_root_value};
+        }
+    }
+}
+
+
 int main(int argc, char *argv[])
 {
     if (argc < 10)
@@ -513,6 +559,20 @@ int main(int argc, char *argv[])
         for (const auto &state : states_2d)
         {
             output result = astar(state);
+
+            cout << result.expanded_nodes << ","
+                 << result.optimal_solution_length << ","
+                 << result.time << ","
+                 << result.heuristic_avg_value << ","
+                 << result.heuristic_root_value
+                 << "\n";
+        }
+    }
+    else if (algorithm == "-idfs")
+    {
+        for (const auto &state : states_2d)
+        {
+            output result = idfs(state);
 
             cout << result.expanded_nodes << ","
                  << result.optimal_solution_length << ","
