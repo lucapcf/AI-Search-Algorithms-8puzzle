@@ -33,4 +33,4 @@
 *.app
 
 # IDE
-.vscode
+/.vscode
