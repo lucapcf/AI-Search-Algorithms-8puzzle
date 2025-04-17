@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib> // for atoi or atof
+#include <cstring>
 #include <deque>
 #include <fstream>
 #include <functional>
@@ -20,7 +22,7 @@ using namespace std;
 const long long int goal_state3 = 36344967696;
 const long long int goal_state4 = 18364758544493064720;
 const std::set<int> expected_sizes = {9, 16};
-int state_size;
+int state_size = 0;
 
 bool is_valid_algorithm(const string &alg) {
     static const unordered_set<string> valid_algorithms = {
@@ -58,9 +60,9 @@ bool is_valid_puzzle_state(const vector<int> &state, int max_value) {
 }
 
 bool extract_digits(int argc, char *argv[], vector<vector<int>> &states_2d) {
-    vector<int> current_state;
+    vector<int> state;
 
-    for (int i = 2; i < argc; ++i) {
+    for (int i = 2; i < argc; i++) {
         string arg = argv[i];
         string current_number = "";
 
@@ -69,23 +71,26 @@ bool extract_digits(int argc, char *argv[], vector<vector<int>> &states_2d) {
                 current_number += c;
             } else if (c == ',') {
                 if (!current_number.empty()) {
-                    current_state.push_back(stoi(current_number));
+                    state.push_back(stoi(current_number));
                     current_number.clear();
                 }
 
-                state_size = is_valid_state_size(current_state);
-                if (state_size == -1) {
+                if (is_valid_state_size(state) == -1 ||
+                    (state.size() != static_cast<std::size_t>(state_size) &&
+                     state_size != 0)) {
                     cerr << "Erro: Estado invalido. Os estados devem ter 9 ou "
                             "16 digitos.\n";
                     return false;
+                } else {
+                    state_size = state.size();
                 }
 
-                if (!is_valid_puzzle_state(current_state, state_size - 1)) {
+                if (!is_valid_puzzle_state(state, state_size - 1)) {
                     return false;
                 }
 
-                states_2d.push_back(current_state);
-                current_state.clear();
+                states_2d.push_back(state);
+                state.clear();
             } else {
                 cerr << "Erro: Caractere invalido: " << c << endl;
                 return false;
@@ -93,56 +98,19 @@ bool extract_digits(int argc, char *argv[], vector<vector<int>> &states_2d) {
         }
 
         if (!current_number.empty()) {
-            current_state.push_back(stoi(current_number));
+            state.push_back(stoi(current_number));
         }
     }
 
-    if (!current_state.empty()) {
-        state_size = is_valid_state_size(current_state);
-        if (state_size == -1) {
-            cerr << "Erro: Estado invalido. Os estados devem ter 9 ou 16 "
-                    "digitos.\n";
-            return false;
-        }
-
-        if (!is_valid_puzzle_state(current_state, state_size - 1)) {
-            return false;
-        }
-
-        states_2d.push_back(current_state);
-    }
-
-    return true;
-}
-
-bool extract_digits_from_stream(istream &in, vector<vector<int>> &states_2d) {
-    string line;
-    while (getline(in, line)) {
-        line.erase(remove_if(line.begin(), line.end(), ::isspace), line.end());
-
-        if (line.empty())
-            continue;
-
-        if (line.size() != 9 && line.size() != 16) {
-            cerr << "Erro: Estado invalido. Os estados devem ter 9 ou 16 "
-                    "digitos.\n";
-            return false;
-        }
-
-        vector<int> state;
-        for (char c : line) {
-            if (!isdigit(c)) {
-                cerr << "Erro: Caracter invalido no estado: " << c << "\n";
-                return false;
-            }
-            state.push_back(c - '0');
-        }
-
-        state_size = is_valid_state_size(state);
-        if (state_size == -1) {
+    if (!state.empty()) {
+        if (is_valid_state_size(state) == -1 ||
+            (state.size() != static_cast<std::size_t>(state_size) &&
+             state_size != 0)) {
             cerr << "Erro: Estado invalido. Os estados devem ter 9 ou "
                     "16 digitos.\n";
             return false;
+        } else {
+            state_size = state.size();
         }
 
         if (!is_valid_puzzle_state(state, state_size - 1)) {
@@ -150,6 +118,47 @@ bool extract_digits_from_stream(istream &in, vector<vector<int>> &states_2d) {
         }
 
         states_2d.push_back(state);
+    }
+
+    return true;
+}
+
+bool extract_digits_from_stream(istream &in, vector<vector<int>> &states_2d) {
+    string line;
+    while (std::getline(in, line)) {
+        if (line.empty())
+            continue;
+
+        std::istringstream iss(line);
+        vector<int> state;
+        string token;
+        while (iss >> token) {
+            try {
+                int number = std::stoi(token);
+                state.push_back(number);
+            } catch (const std::invalid_argument &) {
+                std::cerr << "Aviso: Token inválido ignorado: " << token
+                          << std::endl;
+                continue;
+            }
+        }
+        if (!state.empty()) {
+            if (is_valid_state_size(state) == -1 ||
+                (state.size() != static_cast<std::size_t>(state_size) &&
+                 state_size != 0)) {
+                cerr << "Erro: Estado invalido. Os estados devem ter 9 ou 16 "
+                        "digitos.\n";
+                return false;
+            } else {
+                state_size = state.size();
+            }
+
+            if (!is_valid_puzzle_state(state, state_size - 1)) {
+                return false;
+            }
+
+            states_2d.push_back(state);
+        }
     }
 
     if (states_2d.empty()) {
@@ -619,10 +628,6 @@ int main(int argc, char *argv[]) {
     }
 
     vector<vector<int>> states_2d;
-
-    if (!extract_digits(argc, argv, states_2d)) {
-        return 1;
-    }
 
     if (argc >= 3) {
         if (!extract_digits(argc, argv, states_2d)) {
