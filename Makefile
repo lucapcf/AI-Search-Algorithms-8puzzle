@@ -1,5 +1,7 @@
 CXX = g++  
-CXXFLAGS = -std=c++20 -Wall -Wextra -O2  
+CXXFLAGS = -std=c++20 -Wall -Wextra -O2
+# CXXFLAGS = -std=c++20 -Wall -Wextra -Os -flto -s
+
 
 TARGET = build/main  
 

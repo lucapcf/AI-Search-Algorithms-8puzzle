@@ -1,0 +1,40 @@
+
+Processing: results_bfs_8.csv
+  Column Averages:
+    expanded_nodes: 81459.540000
+    optimal_solution_length: 22.160000
+    time: 0.103776
+    heuristic_avg_value: 0.000000
+    heuristic_root_value: 13.880000
+
+Processing: results_gbfs_8.csv
+  Column Averages:
+    expanded_nodes: 392.420000
+    optimal_solution_length: 140.520000
+    time: 0.001100
+    heuristic_avg_value: 6.893046
+    heuristic_root_value: 13.880000
+
+Processing: results_idastar_8.csv
+  Column Averages:
+    expanded_nodes: 2373.030000
+    optimal_solution_length: 22.160000
+    time: 0.002852
+    heuristic_avg_value: 10.432846
+    heuristic_root_value: 13.880000
+
+Processing: results_idfs_8.csv
+  Column Averages:
+    expanded_nodes: 2578290.560000
+    optimal_solution_length: 22.160000
+    time: 2.725239
+    heuristic_avg_value: 0.000000
+    heuristic_root_value: 13.880000
+
+Processing: results_astar_8.csv
+  Column Averages:
+    expanded_nodes: 895.000000
+    optimal_solution_length: 22.160000
+    time: 0.004804
+    heuristic_avg_value: 10.027752
+    heuristic_root_value: 13.880000
