@@ -627,15 +627,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    cout << "Algoritmo: " << algorithm << "\n";
-    cout << "Estados:\n";
-    for (const auto &state : states_2d) {
-        for (const int &num : state) {
-            cout << num << " ";
-        }
-        cout << "\n";
-    }
-
     std::function<output(long long int, int)> selected_algorithm;
     if (algorithm == "-bfs") {
         selected_algorithm = bfs;
